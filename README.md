@@ -30,4 +30,4 @@ https://visipomo.vercel.app/
 - Tailwind CSS
 - Supabase
 
-Built by Madison Stewart — open to feedback and opportunities.
+**Built by Madison Stewart — open to feedback and opportunities.**
