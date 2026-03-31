@@ -8,7 +8,7 @@ A Pomodoro-style focus timer app built for people who want to stay productive an
 
 ## Live Demo
 
-[YOUR_VERCEL_URL](YOUR_VERCEL_URL)
+https://visipomo.vercel.app/
 
 ## Features
 
@@ -30,4 +30,4 @@ A Pomodoro-style focus timer app built for people who want to stay productive an
 - Tailwind CSS
 - Supabase
 
-Built by [your name] — open to feedback and opportunities.
+Built by Madison Stewart — open to feedback and opportunities.
