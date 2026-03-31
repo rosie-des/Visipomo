@@ -147,17 +147,17 @@ export default function HabitTrackerPage() {
 
   const addHabit = async () => {
     if (!newHabitInput.trim() || !userId) return;
-
     setAddingHabit(true);
     try {
       const { data, error } = await supabase
         .from("habits")
-        .insert([{ user_id: userId, name: newHabitInput }]);
+        .insert([{ user_id: userId, name: newHabitInput.trim() }])
+        .select();
       if (error) throw error;
-      setNewHabitInput("");
-      if (Array.isArray(data) && data.length > 0) {
-        setHabits([...habits, (data as Habit[])[0]]);
+      if (data && data.length > 0) {
+        setHabits((prev) => [...prev, data[0] as Habit]);
       }
+      setNewHabitInput("");
     } catch (error) {
       console.error("Error adding habit:", error);
     } finally {
