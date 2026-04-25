@@ -4,6 +4,16 @@ import { useEffect, useState, useRef, type ChangeEvent } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import BackgroundLayer from "@/components/BackgroundLayer";
+import QuotesOverlay from "@/components/QuotesOverlay";
+import TodoOverlay from "@/components/TodoOverlay";
+import JournalOverlay from "@/components/JournalOverlay";
+import SoundOverlay from "@/components/SoundOverlay";
+import TimerViewsOverlay, { type TimerView } from "@/components/TimerViewsOverlay";
+import FontPickerOverlay from "@/components/FontPickerOverlay";
+import SyncOverlay from "@/components/SyncOverlay";
+import MusicOverlay from "@/components/MusicOverlay";
+import BackgroundOverlay from "@/components/BackgroundOverlay";
+import ResourcesOverlay from "@/components/ResourcesOverlay";
 
 const FOCUS_DURATION = 50 * 60;
 const SHORT_BREAK_DURATION = 10 * 60;
@@ -46,6 +56,21 @@ export default function AppPage() {
   const [youtubeAudioId, setYoutubeAudioId] = useState<string | null>(null);
   const [youtubeAudioMode, setYoutubeAudioMode] = useState<"audio" | "video">("audio");
   const [showYoutubePlayer, setShowYoutubePlayer] = useState(false);
+  const [sessionName, setSessionName] = useState("THE GRIND");
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [lastSessionId, setLastSessionId] = useState<string | null>(null);
+  const [timerView, setTimerView] = useState<TimerView>("default");
+  const [timerFont, setTimerFont] = useState("inherit");
+  const [showQuotesOverlay, setShowQuotesOverlay] = useState(false);
+  const [showTodoOverlay, setShowTodoOverlay] = useState(false);
+  const [showJournalOverlay, setShowJournalOverlay] = useState(false);
+  const [showSoundOverlay, setShowSoundOverlay] = useState(false);
+  const [showTimerViewsOverlay, setShowTimerViewsOverlay] = useState(false);
+  const [showFontPickerOverlay, setShowFontPickerOverlay] = useState(false);
+  const [showSyncOverlay, setShowSyncOverlay] = useState(false);
+  const [showMusicOverlay, setShowMusicOverlay] = useState(false);
+  const [showBackgroundOverlay, setShowBackgroundOverlay] = useState(false);
+  const [showResourcesOverlay, setShowResourcesOverlay] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -64,6 +89,9 @@ export default function AppPage() {
     setBackgroundType(savedBackgroundType);
     setVideoId(savedVideoId);
     setImageUrl(savedImageUrl);
+    setSessionName(localStorage.getItem("sessionName") || "THE GRIND");
+    setTimerView((localStorage.getItem("timerView") as TimerView) || "default");
+    setTimerFont(localStorage.getItem("timerFont") || "inherit");
 
     const savedYoutubeAudioId = localStorage.getItem("youtubeAudioId");
     if (savedYoutubeAudioId) {
@@ -185,6 +213,21 @@ export default function AppPage() {
     }
   };
 
+  const handleSessionNameSave = () => {
+    setIsEditingName(false);
+    localStorage.setItem("sessionName", sessionName);
+  };
+
+  const handleTimerViewChange = (v: TimerView) => {
+    setTimerView(v);
+    localStorage.setItem("timerView", v);
+  };
+
+  const handleFontChange = (f: string) => {
+    setTimerFont(f);
+    localStorage.setItem("timerFont", f);
+  };
+
   const removeAudio = () => {
     if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
     setAudioPlaying(false);
@@ -256,12 +299,23 @@ export default function AppPage() {
     setIsRunning(true);
   };
 
-  const handleModalSave = () => { console.log("Session feedback:", sessionFeedback); startShortBreakAfterModal(); };
-  const handleModalSkip = () => startShortBreakAfterModal();
+  const handleModalSave = async () => {
+    if (lastSessionId && sessionFeedback.trim()) {
+      await supabase.from("sessions").update({ feedback: sessionFeedback.trim() }).eq("id", lastSessionId);
+    }
+    setLastSessionId(null);
+    startShortBreakAfterModal();
+  };
+  const handleModalSkip = () => { setLastSessionId(null); startShortBreakAfterModal(); };
 
   const logSession = async (sessionMode: "focus" | "short_break" | "long_break", durationSeconds: number) => {
     if (!userId) return;
-    await supabase.from("sessions").insert({ user_id: userId, mode: sessionMode, duration_seconds: durationSeconds, completed_at: new Date().toISOString() });
+    const { data } = await supabase
+      .from("sessions")
+      .insert({ user_id: userId, mode: sessionMode, duration_seconds: durationSeconds, completed_at: new Date().toISOString(), session_name: sessionName })
+      .select("id")
+      .single();
+    if (data) setLastSessionId((data as { id: string }).id);
   };
 
   const getDurationForMode = (currentMode: TimerMode) => {
@@ -296,8 +350,8 @@ export default function AppPage() {
         {/* Top nav */}
         <header style={{ position: "fixed", top: 0, left: 0, right: 0, display: "flex", justifyContent: "center", paddingTop: 28, zIndex: 5 }}>
           <div className="inline-flex items-center gap-0.5 rounded-full border border-white/20 bg-black/20 p-1 backdrop-blur-sm">
-            <button type="button" className="rounded-full px-4 py-1.5 text-xs font-medium text-white/50 hover:text-white/80 transition">Planning</button>
-            <button type="button" className="rounded-full px-4 py-1.5 text-xs font-medium text-white/50 hover:text-white/80 transition">Syncing</button>
+            <button type="button" onClick={() => setShowTodoOverlay(true)} className="rounded-full px-4 py-1.5 text-xs font-medium text-white/50 hover:text-white/80 transition">Planning</button>
+            <button type="button" onClick={() => setShowSyncOverlay(true)} className="rounded-full px-4 py-1.5 text-xs font-medium text-white/50 hover:text-white/80 transition">Syncing</button>
             <button type="button" className="rounded-full bg-white/90 px-4 py-1.5 text-xs font-semibold text-black">Timer Views</button>
           </div>
         </header>
@@ -345,11 +399,24 @@ export default function AppPage() {
               {/* Session label */}
               <div className="flex items-center justify-center gap-2 mb-6">
                 <span className="text-[10px] font-semibold tracking-[0.18em] uppercase text-white/40">Session</span>
-                <span className="text-sm font-bold tracking-[0.12em] uppercase text-white">THE GRIND</span>
+                {isEditingName ? (
+                  <input
+                    type="text"
+                    value={sessionName}
+                    onChange={(e) => setSessionName(e.target.value.toUpperCase())}
+                    onBlur={handleSessionNameSave}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleSessionNameSave(); }}
+                    autoFocus
+                    className="text-sm font-bold tracking-[0.12em] uppercase text-white bg-transparent border-b border-white/40 outline-none text-center w-28"
+                  />
+                ) : (
+                  <span className="text-sm font-bold tracking-[0.12em] uppercase text-white">{sessionName}</span>
+                )}
                 <button
                   type="button"
+                  onClick={() => setIsEditingName(true)}
                   className="flex h-6 w-6 items-center justify-center rounded-full border border-white/15 text-white/40 hover:bg-white/10 hover:text-white/70 transition"
-                  aria-label="Edit timer name"
+                  aria-label="Edit session name"
                 >
                   <svg viewBox="0 0 20 20" aria-hidden="true" className="h-3 w-3">
                     <path d="M3 14.5V17h2.5L14 8.5 11.5 6 3 14.5Zm1.5 1.5v-1.09L11.5 7.4l1.09 1.09L5.59 16H4.5Zm9.71-9.21L12.59 5.66 13.8 4.46a1 1 0 0 1 1.4 0l.34.34a1 1 0 0 1 0 1.41l-1.33 1.33Z" fill="currentColor" />
@@ -357,29 +424,31 @@ export default function AppPage() {
                 </button>
               </div>
 
-              {/* Mode tabs */}
-              <div className="flex justify-center mb-6">
-                <div className="inline-flex gap-1 rounded-full border border-white/15 bg-black/20 p-1">
-                  {([
-                    { key: "focus", label: "Focus" },
-                    { key: "short", label: "Short Break" },
-                    { key: "long", label: "Long Break" },
-                  ] as const).map(({ key, label }) => (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => switchMode(key)}
-                      className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-all ${
-                        mode === key
-                          ? "bg-white text-black shadow-sm"
-                          : "text-white/55 hover:text-white/80"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
+              {/* Mode tabs — hidden in minimal view */}
+              {timerView !== "minimal" && (
+                <div className="flex justify-center mb-6">
+                  <div className="inline-flex gap-1 rounded-full border border-white/15 bg-black/20 p-1">
+                    {([
+                      { key: "focus", label: "Focus" },
+                      { key: "short", label: "Short Break" },
+                      { key: "long", label: "Long Break" },
+                    ] as const).map(({ key, label }) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => switchMode(key)}
+                        className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-all ${
+                          mode === key
+                            ? "bg-white text-black shadow-sm"
+                            : "text-white/55 hover:text-white/80"
+                        }`}
+                      >
+                        {label}
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
+              )}
 
               {/* Session dots */}
               <div className="flex items-center justify-center gap-2 mb-7">
@@ -395,32 +464,55 @@ export default function AppPage() {
               </div>
 
               {/* Timer display */}
-              <div className="mb-5">
-                <span
-                  className="tabular-nums font-extrabold leading-none text-white"
-                  style={{ fontSize: 84, letterSpacing: "-0.03em", textShadow: "0 2px 24px rgba(0,0,0,0.25)" }}
-                >
-                  {formatTime(secondsRemaining)}
-                </span>
-              </div>
-
-              {/* Progress bar */}
-              <div className="mb-8 px-1">
-                <div className="relative h-1 w-full overflow-hidden rounded-full bg-white/15">
-                  <div
-                    className="absolute left-0 top-0 h-full rounded-full bg-white/80 transition-all duration-500"
-                    style={{ width: `${fillPercent}%` }}
-                  />
-                  <input
-                    type="range"
-                    min={0}
-                    max={maxForCurrentMode}
-                    value={maxForCurrentMode - secondsRemaining}
-                    onChange={handleSliderChange}
-                    className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
-                  />
+              {timerView === "circle" ? (
+                <div className="relative flex items-center justify-center mb-5">
+                  <svg width="200" height="200" style={{ transform: "rotate(-90deg)" }}>
+                    <circle cx="100" cy="100" r="86" fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth="4" />
+                    <circle
+                      cx="100" cy="100" r="86" fill="none"
+                      stroke="rgba(255,255,255,0.8)" strokeWidth="4"
+                      strokeLinecap="round"
+                      strokeDasharray={540.4}
+                      strokeDashoffset={540.4 * (1 - fillPercent / 100)}
+                      style={{ transition: "stroke-dashoffset 0.5s ease" }}
+                    />
+                  </svg>
+                  <div className="absolute">
+                    <span className="tabular-nums font-extrabold leading-none text-white" style={{ fontSize: 48, letterSpacing: "-0.03em", fontFamily: timerFont }}>
+                      {formatTime(secondsRemaining)}
+                    </span>
+                  </div>
                 </div>
-              </div>
+              ) : (
+                <div className="mb-5">
+                  <span
+                    className="tabular-nums font-extrabold leading-none text-white"
+                    style={{ fontSize: 84, letterSpacing: "-0.03em", textShadow: "0 2px 24px rgba(0,0,0,0.25)", fontFamily: timerFont }}
+                  >
+                    {formatTime(secondsRemaining)}
+                  </span>
+                </div>
+              )}
+
+              {/* Progress bar — hidden in minimal and circle views */}
+              {timerView === "default" && (
+                <div className="mb-8 px-1">
+                  <div className="relative h-1 w-full overflow-hidden rounded-full bg-white/15">
+                    <div
+                      className="absolute left-0 top-0 h-full rounded-full bg-white/80 transition-all duration-500"
+                      style={{ width: `${fillPercent}%` }}
+                    />
+                    <input
+                      type="range"
+                      min={0}
+                      max={maxForCurrentMode}
+                      value={maxForCurrentMode - secondsRemaining}
+                      onChange={handleSliderChange}
+                      className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+                    />
+                  </div>
+                </div>
+              )}
 
               {/* Controls */}
               <div className="flex items-center justify-center gap-3">
@@ -459,7 +551,8 @@ export default function AppPage() {
           <div className="inline-flex items-center gap-0.5 rounded-full border border-white/20 bg-black/20 p-1 backdrop-blur-sm">
             <button
               type="button"
-              aria-label="Sound controls"
+              onClick={() => setShowSoundOverlay(true)}
+              aria-label="Ambient sounds"
               className="flex h-9 w-9 items-center justify-center rounded-full text-white/60 hover:bg-white/15 hover:text-white transition"
             >
               <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4">
@@ -473,8 +566,8 @@ export default function AppPage() {
             </button>
             <button
               type="button"
-              onClick={toggleAudio}
-              aria-label="Toggle audio"
+              onClick={() => setShowMusicOverlay(true)}
+              aria-label="Music"
               className="flex h-9 w-9 items-center justify-center rounded-full text-white/60 hover:bg-white/15 hover:text-white transition"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -483,7 +576,8 @@ export default function AppPage() {
             </button>
             <button
               type="button"
-              aria-label="Link session"
+              onClick={() => setShowBackgroundOverlay(true)}
+              aria-label="Background"
               className="flex h-9 w-9 items-center justify-center rounded-full text-white/60 hover:bg-white/15 hover:text-white transition"
             >
               <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4">
@@ -503,21 +597,29 @@ export default function AppPage() {
               </svg>
             </button>
           </div>
-          <button type="button" className="rounded-full bg-white/90 px-6 py-2 text-sm font-semibold text-black hover:bg-white transition shadow-sm">
+          <button type="button" onClick={() => router.push("/vision-board")} className="rounded-full bg-white/90 px-6 py-2 text-sm font-semibold text-black hover:bg-white transition shadow-sm">
             View Board
           </button>
         </footer>
       </div>
 
       {/* Settings backdrop */}
-      {showSettingsOverlay && (
-        <button
-          type="button"
-          style={{ position: "fixed", inset: 0, zIndex: 30, background: "rgba(0,0,0,0.45)", cursor: "default", backdropFilter: "blur(2px)" }}
-          onClick={() => setShowSettingsOverlay(false)}
-          aria-label="Close settings overlay"
-        />
-      )}
+      <button
+        type="button"
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 30,
+          background: "rgba(0,0,0,0.45)",
+          cursor: "default",
+          backdropFilter: "blur(2px)",
+          opacity: showSettingsOverlay ? 1 : 0,
+          pointerEvents: showSettingsOverlay ? "auto" : "none",
+          transition: "opacity 280ms",
+        }}
+        onClick={() => setShowSettingsOverlay(false)}
+        aria-label="Close settings overlay"
+      />
 
       {/* Settings panel */}
       <div style={{ position: "fixed", inset: "0 auto 0 0", zIndex: 40, display: "flex", alignItems: "stretch", pointerEvents: "none" }}>
@@ -556,9 +658,9 @@ export default function AppPage() {
             <div className="py-5 border-b border-white/10">
               <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-white/30">Visions</p>
               <div className="space-y-0.5">
-                {["Vision Boards", "Image Library", "My Uploads"].map((item) => (
-                  <button key={item} type="button" className="block w-full text-left text-sm text-white/65 py-1.5 px-2 rounded-lg hover:bg-white/8 hover:text-white transition" onClick={() => console.log(item)}>{item}</button>
-                ))}
+                <button type="button" className="block w-full text-left text-sm text-white/65 py-1.5 px-2 rounded-lg hover:bg-white/8 hover:text-white transition" onClick={() => { setShowSettingsOverlay(false); router.push("/vision-board"); }}>Vision Boards</button>
+                <button type="button" className="block w-full text-left text-sm text-white/65 py-1.5 px-2 rounded-lg hover:bg-white/8 hover:text-white transition" onClick={() => { setShowSettingsOverlay(false); router.push("/image-library"); }}>Image Library</button>
+                <button type="button" className="block w-full text-left text-sm text-white/65 py-1.5 px-2 rounded-lg hover:bg-white/8 hover:text-white transition" onClick={() => { setShowSettingsOverlay(false); router.push("/uploads"); }}>My Uploads</button>
               </div>
             </div>
 
@@ -566,8 +668,11 @@ export default function AppPage() {
             <div className="py-5 border-b border-white/10">
               <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-white/30">Display</p>
               <div className="space-y-0.5 mb-4">
-                {["Timer Views", "Fonts"].map((item) => (
-                  <button key={item} type="button" className="block w-full text-left text-sm text-white/65 py-1.5 px-2 rounded-lg hover:bg-white/8 hover:text-white transition">{item}</button>
+                {[
+                  { label: "Timer Views", action: () => setShowTimerViewsOverlay(true) },
+                  { label: "Fonts", action: () => setShowFontPickerOverlay(true) },
+                ].map(({ label, action }) => (
+                  <button key={label} type="button" className="block w-full text-left text-sm text-white/65 py-1.5 px-2 rounded-lg hover:bg-white/8 hover:text-white transition" onClick={action}>{label}</button>
                 ))}
               </div>
               <p className="mb-2 text-xs text-white/40 font-medium">Background</p>
@@ -600,13 +705,18 @@ export default function AppPage() {
             <div className="py-5 border-b border-white/10">
               <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-white/30">Success Activities</p>
               <div className="space-y-0.5">
-                {["Habit Tracker", "Motivational Quotes", "Journals", "To Do Lists"].map((item) => (
+                {[
+                  { label: "Habit Tracker", action: () => { setShowSettingsOverlay(false); router.push("/habit-tracker"); } },
+                  { label: "Motivational Quotes", action: () => { setShowSettingsOverlay(false); setShowQuotesOverlay(true); } },
+                  { label: "Journals", action: () => { setShowSettingsOverlay(false); setShowJournalOverlay(true); } },
+                  { label: "To Do Lists", action: () => { setShowSettingsOverlay(false); setShowTodoOverlay(true); } },
+                ].map(({ label, action }) => (
                   <button
-                    key={item}
+                    key={label}
                     type="button"
                     className="block w-full text-left text-sm text-white/65 py-1.5 px-2 rounded-lg hover:bg-white/8 hover:text-white transition"
-                    onClick={() => { if (item === "Habit Tracker") { setShowSettingsOverlay(false); window.location.href = "/habit-tracker"; } else { console.log(item); } }}
-                  >{item}</button>
+                    onClick={action}
+                  >{label}</button>
                 ))}
               </div>
             </div>
@@ -616,7 +726,7 @@ export default function AppPage() {
               <p className="mb-3 text-[10px] font-semibold uppercase tracking-widest text-white/30">Resources</p>
               <div className="space-y-0.5">
                 {["Motivational Articles", "Inspirational Success Stories", "Wealth Information Sites", "Science Behind the App"].map((item) => (
-                  <button key={item} type="button" className="block w-full text-left text-sm text-white/65 py-1.5 px-2 rounded-lg hover:bg-white/8 hover:text-white transition" onClick={() => console.log(item)}>{item}</button>
+                  <button key={item} type="button" className="block w-full text-left text-sm text-white/65 py-1.5 px-2 rounded-lg hover:bg-white/8 hover:text-white transition" onClick={() => { setShowSettingsOverlay(false); setShowResourcesOverlay(true); }}>{item}</button>
                 ))}
               </div>
             </div>
@@ -734,7 +844,7 @@ export default function AppPage() {
               >Skip</button>
               <button
                 type="button"
-                onClick={handleModalSave}
+                onClick={() => void handleModalSave()}
                 className="flex-1 rounded-full py-2.5 text-sm font-semibold text-white transition"
                 style={{ background: "linear-gradient(135deg, #22c55e 0%, #16a34a 100%)", boxShadow: "0 4px 18px rgba(34,197,94,0.4)" }}
               >Save</button>
@@ -750,6 +860,43 @@ export default function AppPage() {
           src={`https://www.youtube.com/embed/${youtubeAudioId}?autoplay=1&loop=1&playlist=${youtubeAudioId}&controls=0`}
           allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
           title="Audio player"
+        />
+      )}
+
+      {/* Feature overlays */}
+      {showResourcesOverlay && <ResourcesOverlay onClose={() => setShowResourcesOverlay(false)} />}
+      {showQuotesOverlay && <QuotesOverlay onClose={() => setShowQuotesOverlay(false)} />}
+      {showTodoOverlay && userId && <TodoOverlay onClose={() => setShowTodoOverlay(false)} userId={userId} />}
+      {showJournalOverlay && userId && <JournalOverlay onClose={() => setShowJournalOverlay(false)} userId={userId} />}
+      {showSoundOverlay && <SoundOverlay onClose={() => setShowSoundOverlay(false)} volume={audioVolume} />}
+      {showTimerViewsOverlay && <TimerViewsOverlay onClose={() => setShowTimerViewsOverlay(false)} current={timerView} onChange={handleTimerViewChange} />}
+      {showFontPickerOverlay && <FontPickerOverlay onClose={() => setShowFontPickerOverlay(false)} current={timerFont} onChange={handleFontChange} />}
+      {showSyncOverlay && userId && <SyncOverlay onClose={() => setShowSyncOverlay(false)} userId={userId} />}
+      {showMusicOverlay && (
+        <MusicOverlay
+          onClose={() => setShowMusicOverlay(false)}
+          audioUrl={audioUrl}
+          audioPlaying={audioPlaying}
+          audioVolume={audioVolume}
+          youtubeAudioId={youtubeAudioId}
+          onSubmitUrl={handleAudioUrlSubmit}
+          onToggleAudio={toggleAudio}
+          onRemoveAudio={removeAudio}
+          onRemoveYoutubeAudio={() => { setYoutubeAudioId(null); setShowYoutubePlayer(false); localStorage.removeItem("youtubeAudioId"); }}
+          onVolumeChange={setAudioVolume}
+          onFileUpload={handleAudioUpload}
+        />
+      )}
+      {showBackgroundOverlay && (
+        <BackgroundOverlay
+          onClose={() => setShowBackgroundOverlay(false)}
+          backgroundType={backgroundType}
+          videoUrl={videoUrl}
+          imageUrl={imageUrl}
+          onBackgroundTypeChange={handleBackgroundTypeChange}
+          onVideoUrlChange={handleVideoUrlChange}
+          onImageUrlChange={handleImageUrlChange}
+          onFileUpload={handleFileUpload}
         />
       )}
 

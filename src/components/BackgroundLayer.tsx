@@ -17,6 +17,7 @@ export default function BackgroundLayer() {
   const [playerReady, setPlayerReady] = useState(false);
   const playerRef = useRef<any>(null);
   const waitIntervalRef = useRef<any>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setBackgroundType((localStorage.getItem("backgroundType") as "video" | "image") || "video");
@@ -36,6 +37,11 @@ export default function BackgroundLayer() {
       try { playerRef.current.destroy(); } catch (_) {}
       playerRef.current = null;
     }
+    if (containerRef.current) {
+      while (containerRef.current.firstChild) {
+        containerRef.current.removeChild(containerRef.current.firstChild);
+      }
+    }
     setPlayerReady(false);
     setIsPlaying(true);
     setIsMuted(true);
@@ -52,12 +58,18 @@ export default function BackgroundLayer() {
 
     const createPlayer = () => {
       waitIntervalRef.current = setInterval(() => {
-        const div = document.getElementById("yt-background");
-        if (!div) return;
+        if (!containerRef.current) return;
         clearInterval(waitIntervalRef.current);
         waitIntervalRef.current = null;
 
-        playerRef.current = new window.YT.Player("yt-background", {
+        const target = document.createElement("div");
+        target.style.width = "100%";
+        target.style.height = "100%";
+        containerRef.current.appendChild(target);
+
+        playerRef.current = new window.YT.Player(target, {
+          width: "100%",
+          height: "100%",
           videoId,
           playerVars: {
             autoplay: 1,
@@ -150,19 +162,21 @@ export default function BackgroundLayer() {
 
   return (
     <>
+      <div
+        ref={containerRef}
+        style={{
+          position: "fixed",
+          inset: 0,
+          width: "100%",
+          height: "100%",
+          zIndex: 0,
+          pointerEvents: "none",
+          display: backgroundType === "video" ? "block" : "none",
+        }}
+      />
+
       {backgroundType === "video" && (
         <>
-          <div
-            id="yt-background"
-            style={{
-              position: "fixed",
-              inset: 0,
-              width: "100%",
-              height: "100%",
-              zIndex: 0,
-              pointerEvents: "none",
-            }}
-          />
           <button
             type="button"
             onClick={toggleMute}
