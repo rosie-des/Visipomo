@@ -7,7 +7,7 @@ import BackgroundLayer from "@/components/BackgroundLayer";
 import QuotesOverlay from "@/components/QuotesOverlay";
 import TodoOverlay from "@/components/TodoOverlay";
 import JournalOverlay from "@/components/JournalOverlay";
-import SoundOverlay from "@/components/SoundOverlay";
+import SoundOverlay, { type SoundType, buildNoiseBuffer } from "@/components/SoundOverlay";
 import TimerViewsOverlay, { type TimerView } from "@/components/TimerViewsOverlay";
 import FontPickerOverlay from "@/components/FontPickerOverlay";
 import SyncOverlay from "@/components/SyncOverlay";
@@ -65,6 +65,10 @@ export default function AppPage() {
   const [showTodoOverlay, setShowTodoOverlay] = useState(false);
   const [showJournalOverlay, setShowJournalOverlay] = useState(false);
   const [showSoundOverlay, setShowSoundOverlay] = useState(false);
+  const [activeSoundType, setActiveSoundType] = useState<SoundType | null>(null);
+  const soundCtxRef = useRef<AudioContext | null>(null);
+  const soundSourceRef = useRef<AudioBufferSourceNode | null>(null);
+  const soundGainRef = useRef<GainNode | null>(null);
   const [showTimerViewsOverlay, setShowTimerViewsOverlay] = useState(false);
   const [showFontPickerOverlay, setShowFontPickerOverlay] = useState(false);
   const [showSyncOverlay, setShowSyncOverlay] = useState(false);
@@ -110,17 +114,15 @@ export default function AppPage() {
 
   useEffect(() => {
     return () => {
-      if (audioRef.current) {
-        audioRef.current.pause();
-        audioRef.current = null;
-      }
+      if (audioRef.current) { audioRef.current.pause(); audioRef.current = null; }
+      if (soundSourceRef.current) { soundSourceRef.current.stop(); soundSourceRef.current = null; }
+      if (soundCtxRef.current) { void soundCtxRef.current.close(); soundCtxRef.current = null; }
     };
   }, []);
 
   useEffect(() => {
-    if (audioRef.current) {
-      audioRef.current.volume = audioVolume;
-    }
+    if (audioRef.current) audioRef.current.volume = audioVolume;
+    if (soundGainRef.current) soundGainRef.current.gain.value = audioVolume * 0.4;
   }, [audioVolume]);
 
   const extractVideoId = (url: string) => {
@@ -226,6 +228,28 @@ export default function AppPage() {
   const handleFontChange = (f: string) => {
     setTimerFont(f);
     localStorage.setItem("timerFont", f);
+  };
+
+  const playSound = (type: SoundType) => {
+    if (soundSourceRef.current) { soundSourceRef.current.stop(); soundSourceRef.current = null; }
+    if (activeSoundType === type) { setActiveSoundType(null); return; }
+
+    if (!soundCtxRef.current) soundCtxRef.current = new AudioContext();
+    const ctx = soundCtxRef.current;
+    const gain = ctx.createGain();
+    gain.gain.value = audioVolume * 0.4;
+    soundGainRef.current = gain;
+    const source = buildNoiseBuffer(ctx, type);
+    source.connect(gain);
+    gain.connect(ctx.destination);
+    source.start();
+    soundSourceRef.current = source;
+    setActiveSoundType(type);
+  };
+
+  const stopSound = () => {
+    if (soundSourceRef.current) { soundSourceRef.current.stop(); soundSourceRef.current = null; }
+    setActiveSoundType(null);
   };
 
   const removeAudio = () => {
@@ -549,21 +573,26 @@ export default function AppPage() {
         {/* Bottom bar */}
         <footer style={{ position: "fixed", bottom: 0, left: 0, right: 0, padding: "0 28px 28px", display: "flex", alignItems: "center", justifyContent: "space-between", zIndex: 5 }}>
           <div className="inline-flex items-center gap-0.5 rounded-full border border-white/20 bg-black/20 p-1 backdrop-blur-sm">
-            <button
-              type="button"
-              onClick={() => setShowSoundOverlay(true)}
-              aria-label="Ambient sounds"
-              className="flex h-9 w-9 items-center justify-center rounded-full text-white/60 hover:bg-white/15 hover:text-white transition"
-            >
-              <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4">
-                <line x1="2" y1="12" x2="2" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
-                <line x1="6" y1="8" x2="6" y2="16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
-                <line x1="10" y1="5" x2="10" y2="19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
-                <line x1="14" y1="8" x2="14" y2="16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
-                <line x1="18" y1="10" x2="18" y2="14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
-                <line x1="22" y1="12" x2="22" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
-              </svg>
-            </button>
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowSoundOverlay(true)}
+                aria-label="Ambient sounds"
+                className={`flex h-9 w-9 items-center justify-center rounded-full transition ${activeSoundType ? "bg-white/15 text-white" : "text-white/60 hover:bg-white/15 hover:text-white"}`}
+              >
+                <svg viewBox="0 0 24 24" aria-hidden="true" className="h-4 w-4">
+                  <line x1="2" y1="12" x2="2" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
+                  <line x1="6" y1="8" x2="6" y2="16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
+                  <line x1="10" y1="5" x2="10" y2="19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
+                  <line x1="14" y1="8" x2="14" y2="16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
+                  <line x1="18" y1="10" x2="18" y2="14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
+                  <line x1="22" y1="12" x2="22" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" fill="none" />
+                </svg>
+              </button>
+              {activeSoundType && (
+                <span className="absolute bottom-0.5 left-1/2 -translate-x-1/2 h-1 w-1 rounded-full bg-green-400" />
+              )}
+            </div>
             <button
               type="button"
               onClick={() => setShowMusicOverlay(true)}
@@ -868,7 +897,7 @@ export default function AppPage() {
       {showQuotesOverlay && <QuotesOverlay onClose={() => setShowQuotesOverlay(false)} />}
       {showTodoOverlay && userId && <TodoOverlay onClose={() => setShowTodoOverlay(false)} userId={userId} />}
       {showJournalOverlay && userId && <JournalOverlay onClose={() => setShowJournalOverlay(false)} userId={userId} />}
-      {showSoundOverlay && <SoundOverlay onClose={() => setShowSoundOverlay(false)} volume={audioVolume} />}
+      {showSoundOverlay && <SoundOverlay onClose={() => setShowSoundOverlay(false)} playing={activeSoundType} onPlay={playSound} onStop={stopSound} />}
       {showTimerViewsOverlay && <TimerViewsOverlay onClose={() => setShowTimerViewsOverlay(false)} current={timerView} onChange={handleTimerViewChange} />}
       {showFontPickerOverlay && <FontPickerOverlay onClose={() => setShowFontPickerOverlay(false)} current={timerFont} onChange={handleFontChange} />}
       {showSyncOverlay && userId && <SyncOverlay onClose={() => setShowSyncOverlay(false)} userId={userId} />}

@@ -1,9 +1,8 @@
 "use client";
-import { useRef, useState } from "react";
 
-type SoundType = "white" | "brown" | "rain";
+export type SoundType = "white" | "brown" | "rain";
 
-function buildNoiseBuffer(ctx: AudioContext, type: SoundType): AudioBufferSourceNode {
+export function buildNoiseBuffer(ctx: AudioContext, type: SoundType): AudioBufferSourceNode {
   const bufferSize = ctx.sampleRate * 3;
   const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
   const data = buffer.getChannelData(0);
@@ -45,32 +44,20 @@ const SOUNDS: { type: SoundType; label: string; desc: string }[] = [
   { type: "rain", label: "Rain", desc: "Soft rainfall texture" },
 ];
 
-export default function SoundOverlay({ onClose, volume }: { onClose: () => void; volume: number }) {
-  const [playing, setPlaying] = useState<SoundType | null>(null);
-  const ctxRef = useRef<AudioContext | null>(null);
-  const sourceRef = useRef<AudioBufferSourceNode | null>(null);
-
-  const play = (type: SoundType) => {
-    if (sourceRef.current) { sourceRef.current.stop(); sourceRef.current = null; }
-    if (playing === type) { setPlaying(null); return; }
-
-    if (!ctxRef.current) ctxRef.current = new AudioContext();
-    const ctx = ctxRef.current;
-    const source = buildNoiseBuffer(ctx, type);
-    const gain = ctx.createGain();
-    gain.gain.value = volume * 0.4;
-    source.connect(gain);
-    gain.connect(ctx.destination);
-    source.start();
-    sourceRef.current = source;
-    setPlaying(type);
-  };
-
-  const handleClose = () => {
-    if (sourceRef.current) { sourceRef.current.stop(); sourceRef.current = null; }
-    if (ctxRef.current) { void ctxRef.current.close(); ctxRef.current = null; }
-    setPlaying(null);
-    onClose();
+export default function SoundOverlay({
+  onClose,
+  onPlay,
+  onStop,
+  playing,
+}: {
+  onClose: () => void;
+  onPlay: (type: SoundType) => void;
+  onStop: () => void;
+  playing: SoundType | null;
+}) {
+  const handleSoundClick = (type: SoundType) => {
+    if (playing === type) onStop();
+    else onPlay(type);
   };
 
   return (
@@ -78,14 +65,14 @@ export default function SoundOverlay({ onClose, volume }: { onClose: () => void;
       <button
         type="button"
         style={{ position: "fixed", inset: 0, zIndex: 50, background: "rgba(0,0,0,0.6)", backdropFilter: "blur(4px)", cursor: "default" }}
-        onClick={(e) => { e.stopPropagation(); handleClose(); }}
+        onClick={(e) => { e.stopPropagation(); onClose(); }}
         aria-label="Close"
       />
       <div style={{ position: "fixed", inset: 0, zIndex: 51, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, pointerEvents: "none" }}>
         <div onClick={(e) => e.stopPropagation()} style={{ pointerEvents: "auto", width: "100%", maxWidth: 380, background: "rgba(10,10,14,0.96)", backdropFilter: "blur(28px)", WebkitBackdropFilter: "blur(28px)", border: "1px solid rgba(255,255,255,0.10)", borderRadius: 24, padding: "32px 28px 28px" }}>
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-sm font-semibold text-white">Ambient Sounds</h2>
-            <button type="button" onClick={handleClose} className="flex h-7 w-7 items-center justify-center rounded-full text-white/40 hover:bg-white/10 hover:text-white transition">
+            <button type="button" onClick={onClose} className="flex h-7 w-7 items-center justify-center rounded-full text-white/40 hover:bg-white/10 hover:text-white transition">
               <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12" strokeLinecap="round" /></svg>
             </button>
           </div>
@@ -94,7 +81,7 @@ export default function SoundOverlay({ onClose, volume }: { onClose: () => void;
               <button
                 key={type}
                 type="button"
-                onClick={() => play(type)}
+                onClick={() => handleSoundClick(type)}
                 className={`w-full flex items-center justify-between px-4 py-3 rounded-xl border transition ${playing === type ? "border-green-400/40 bg-green-400/10 text-white" : "border-white/10 bg-white/5 text-white/65 hover:bg-white/10 hover:text-white"}`}
               >
                 <div className="text-left">
