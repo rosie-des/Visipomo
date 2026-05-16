@@ -1,5 +1,5 @@
 "use client";
-import { type ChangeEvent } from "react";
+import { useState, type ChangeEvent } from "react";
 
 interface BackgroundOverlayProps {
   onClose: () => void;
@@ -22,6 +22,17 @@ export default function BackgroundOverlay({
   onImageUrlChange,
   onFileUpload,
 }: BackgroundOverlayProps) {
+  const [pendingVideoUrl, setPendingVideoUrl] = useState(videoUrl);
+  const [pendingImageUrl, setPendingImageUrl] = useState(imageUrl);
+
+  const applyVideo = () => {
+    if (pendingVideoUrl.trim()) onVideoUrlChange(pendingVideoUrl.trim());
+  };
+
+  const applyImage = () => {
+    if (pendingImageUrl.trim()) onImageUrlChange(pendingImageUrl.trim());
+  };
+
   return (
     <>
       <button
@@ -59,13 +70,23 @@ export default function BackgroundOverlay({
           {backgroundType === "video" && (
             <div>
               <label className="block text-xs text-white/35 mb-2">YouTube URL</label>
-              <input
-                type="text"
-                value={videoUrl}
-                onChange={(e) => onVideoUrlChange(e.target.value)}
-                placeholder="https://youtube.com/watch?v=..."
-                className="w-full px-3 py-2.5 text-sm rounded-xl border border-white/10 bg-white/5 text-white placeholder:text-white/20 focus:outline-none focus:border-white/20"
-              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={pendingVideoUrl}
+                  onChange={(e) => setPendingVideoUrl(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") applyVideo(); }}
+                  placeholder="https://youtube.com/watch?v=..."
+                  className="flex-1 px-3 py-2.5 text-sm rounded-xl border border-white/10 bg-white/5 text-white placeholder:text-white/20 focus:outline-none focus:border-white/20"
+                />
+                <button
+                  type="button"
+                  onClick={applyVideo}
+                  className="px-4 py-2.5 text-sm font-semibold rounded-xl bg-white text-black hover:bg-white/90 transition"
+                >
+                  Add
+                </button>
+              </div>
               <p className="text-xs text-white/25 mt-2">The video plays silently as your background. Use the Music icon to add audio separately.</p>
             </div>
           )}
@@ -75,13 +96,23 @@ export default function BackgroundOverlay({
             <div className="space-y-3">
               <div>
                 <label className="block text-xs text-white/35 mb-2">Image URL</label>
-                <input
-                  type="text"
-                  value={imageUrl}
-                  onChange={(e) => onImageUrlChange(e.target.value)}
-                  placeholder="https://example.com/image.jpg"
-                  className="w-full px-3 py-2.5 text-sm rounded-xl border border-white/10 bg-white/5 text-white placeholder:text-white/20 focus:outline-none focus:border-white/20"
-                />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={pendingImageUrl}
+                    onChange={(e) => setPendingImageUrl(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") applyImage(); }}
+                    placeholder="https://example.com/image.jpg"
+                    className="flex-1 px-3 py-2.5 text-sm rounded-xl border border-white/10 bg-white/5 text-white placeholder:text-white/20 focus:outline-none focus:border-white/20"
+                  />
+                  <button
+                    type="button"
+                    onClick={applyImage}
+                    className="px-4 py-2.5 text-sm font-semibold rounded-xl bg-white text-black hover:bg-white/90 transition"
+                  >
+                    Add
+                  </button>
+                </div>
               </div>
               <div className="flex items-center gap-3">
                 <div className="flex-1 h-px bg-white/10" />

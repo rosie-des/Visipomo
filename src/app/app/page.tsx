@@ -48,6 +48,8 @@ export default function AppPage() {
   const [videoId, setVideoId] = useState("jfKfPfyJRdk");
   const [imageUrl, setImageUrl] = useState("");
   const [videoUrl, setVideoUrl] = useState("");
+  const [pendingSettingsVideoUrl, setPendingSettingsVideoUrl] = useState("");
+  const [pendingSettingsImageUrl, setPendingSettingsImageUrl] = useState("");
   const [audioUrl, setAudioUrl] = useState<string | null>(null);
   const [audioPlaying, setAudioPlaying] = useState(false);
   const [audioVolume, setAudioVolume] = useState(0.5);
@@ -93,6 +95,7 @@ export default function AppPage() {
     setBackgroundType(savedBackgroundType);
     setVideoId(savedVideoId);
     setImageUrl(savedImageUrl);
+    setPendingSettingsImageUrl(savedImageUrl);
     setSessionName(localStorage.getItem("sessionName") || "THE GRIND");
     setTimerView((localStorage.getItem("timerView") as TimerView) || "default");
     setTimerFont(localStorage.getItem("timerFont") || "inherit");
@@ -146,6 +149,7 @@ export default function AppPage() {
     reader.onloadend = () => {
       const base64 = reader.result as string;
       setImageUrl(base64);
+      setPendingSettingsImageUrl(base64);
       setBackgroundType("image");
       localStorage.setItem("imageUrl", base64);
       localStorage.setItem("backgroundType", "image");
@@ -367,7 +371,7 @@ export default function AppPage() {
 
   return (
     <>
-      <BackgroundLayer />
+      <BackgroundLayer backgroundType={backgroundType} videoId={videoId} imageUrl={imageUrl} />
 
       <div style={{ position: "relative", zIndex: 2, minHeight: "100vh", display: "flex", flexDirection: "column" }}>
 
@@ -718,12 +722,40 @@ export default function AppPage() {
               {backgroundType === "video" ? (
                 <div>
                   <label className="block text-xs text-white/35 mb-1.5">YouTube URL</label>
-                  <input type="text" value={videoUrl} onChange={(e) => handleVideoUrlChange(e.target.value)} placeholder="Paste YouTube URL" className="w-full px-3 py-2 text-xs rounded-lg border border-white/10 bg-white/8 text-white placeholder:text-white/20 focus:outline-none focus:border-white/20" />
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={pendingSettingsVideoUrl}
+                      onChange={(e) => setPendingSettingsVideoUrl(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { handleVideoUrlChange(pendingSettingsVideoUrl); } }}
+                      placeholder="Paste YouTube URL"
+                      className="flex-1 px-3 py-2 text-xs rounded-lg border border-white/10 bg-white/8 text-white placeholder:text-white/20 focus:outline-none focus:border-white/20"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleVideoUrlChange(pendingSettingsVideoUrl)}
+                      className="px-3 py-2 text-xs font-semibold rounded-lg bg-white text-black hover:bg-white/90 transition"
+                    >Add</button>
+                  </div>
                 </div>
               ) : (
                 <div className="space-y-2">
                   <label className="block text-xs text-white/35">Image URL</label>
-                  <input type="text" value={imageUrl} onChange={(e) => handleImageUrlChange(e.target.value)} placeholder="Enter image URL" className="w-full px-3 py-2 text-xs rounded-lg border border-white/10 bg-white/8 text-white placeholder:text-white/20 focus:outline-none focus:border-white/20" />
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={pendingSettingsImageUrl}
+                      onChange={(e) => setPendingSettingsImageUrl(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") { handleImageUrlChange(pendingSettingsImageUrl); } }}
+                      placeholder="Enter image URL"
+                      className="flex-1 px-3 py-2 text-xs rounded-lg border border-white/10 bg-white/8 text-white placeholder:text-white/20 focus:outline-none focus:border-white/20"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => handleImageUrlChange(pendingSettingsImageUrl)}
+                      className="px-3 py-2 text-xs font-semibold rounded-lg bg-white text-black hover:bg-white/90 transition"
+                    >Add</button>
+                  </div>
                   <input type="file" accept="image/*" onChange={handleFileUpload} style={{ display: "none" }} id="settings-image-upload" />
                   <label htmlFor="settings-image-upload" className="block text-center px-3 py-2 border border-white/10 rounded-lg text-xs text-white/50 cursor-pointer hover:bg-white/8 hover:text-white/70 transition">Upload from Device</label>
                 </div>

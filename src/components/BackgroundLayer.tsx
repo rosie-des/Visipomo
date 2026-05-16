@@ -8,10 +8,13 @@ declare global {
   }
 }
 
-export default function BackgroundLayer() {
-  const [backgroundType, setBackgroundType] = useState<"video" | "image">("video");
-  const [videoId, setVideoId] = useState("jfKfPfyJRdk");
-  const [imageUrl, setImageUrl] = useState("");
+interface BackgroundLayerProps {
+  backgroundType: "video" | "image";
+  videoId: string;
+  imageUrl: string;
+}
+
+export default function BackgroundLayer({ backgroundType, videoId, imageUrl }: BackgroundLayerProps) {
   const [isMuted, setIsMuted] = useState(true);
   const [isPlaying, setIsPlaying] = useState(true);
   const [playerReady, setPlayerReady] = useState(false);
@@ -19,14 +22,7 @@ export default function BackgroundLayer() {
   const waitIntervalRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    setBackgroundType((localStorage.getItem("backgroundType") as "video" | "image") || "video");
-    setVideoId(localStorage.getItem("videoId") || "jfKfPfyJRdk");
-    setImageUrl(localStorage.getItem("imageUrl") || "");
-  }, []);
-
   const destroyPlayer = () => {
-    // Clear any pending init interval
     if (waitIntervalRef.current) {
       clearInterval(waitIntervalRef.current);
       waitIntervalRef.current = null;
@@ -53,7 +49,6 @@ export default function BackgroundLayer() {
       return;
     }
 
-    // Always destroy existing player first before creating a new one
     destroyPlayer();
 
     const createPlayer = () => {
@@ -138,26 +133,6 @@ export default function BackgroundLayer() {
     } catch (e) {
       console.error("Play/pause error:", e);
     }
-  };
-
-  const handleImageUrlChange = (url: string) => {
-    const processedUrl = url.replace(/\/(236x|474x|564x)\//g, "/originals/");
-    setImageUrl(processedUrl);
-    localStorage.setItem("imageUrl", processedUrl);
-  };
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const base64 = reader.result as string;
-      setImageUrl(base64);
-      setBackgroundType("image");
-      localStorage.setItem("imageUrl", base64);
-      localStorage.setItem("backgroundType", "image");
-    };
-    reader.readAsDataURL(file);
   };
 
   return (
